@@ -39,6 +39,7 @@ function startGame() {
   player.x = 50; player.y = 330; player.vx = 0; player.vy = 0; player.onGround = true;
   bullets = [];
   enemies = [{ x: 300, y: 330, vx: 1, width: 20, height: 20 }];
+  loop();
 }
 
 function shoot() {
