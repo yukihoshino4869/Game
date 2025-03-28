@@ -12,6 +12,7 @@
       position: relative;
       margin: auto;
       top: 50px;
+      overflow: hidden;
     }
     #player {
       width: 30px;
@@ -28,47 +29,72 @@
       height: 30px;
       background: #5d4037;
     }
+    .block {
+      width: 30px;
+      height: 30px;
+      background: blue;
+      position: absolute;
+      bottom: 60px;
+    }
   </style>
 </head>
 <body>
   <div id="game">
     <div id="player"></div>
+    <div class="block" style="left: 200px;"></div>
+    <div class="block" style="left: 350px;"></div>
     <div id="ground"></div>
   </div>
 
   <script>
     const player = document.getElementById("player");
+    const blocks = document.querySelectorAll(".block");
+
     let posX = 50;
     let posY = 0;
-    let isJumping = false;
     let velocityY = 0;
+    let isJumping = false;
+    const gravity = 0.7;
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight") {
+      if (e.key === "ArrowRight" || e.key === "d") {
         posX += 10;
-      } else if (e.key === "ArrowLeft") {
+      } else if (e.key === "ArrowLeft" || e.key === "a") {
         posX -= 10;
-      } else if (e.key === " " || e.key === "ArrowUp") {
-        if (!isJumping) {
-          isJumping = true;
-          velocityY = -12;
-        }
+      } else if ((e.key === " " || e.key === "ArrowUp" || e.key === "w") && !isJumping) {
+        velocityY = -12;
+        isJumping = true;
       }
     });
 
     function update() {
-      if (isJumping) {
-        velocityY += 0.5;
-        posY += velocityY;
+      velocityY += gravity;
+      posY += velocityY;
 
-        if (posY >= 0) {
-          posY = 0;
-          isJumping = false;
-        }
+      // 地面に落ちたら止める
+      if (posY >= 0) {
+        posY = 0;
+        velocityY = 0;
+        isJumping = false;
       }
 
+      // プレイヤー位置を更新
       player.style.left = posX + "px";
       player.style.bottom = (30 + posY) + "px";
+
+      // 簡単な障害物との当たり判定
+      blocks.forEach(block => {
+        const blockX = parseInt(block.style.left);
+        if (
+          posX + 30 > blockX &&
+          posX < blockX + 30 &&
+          posY < 30 &&
+          posY > -30
+        ) {
+          // 当たったら戻す
+          posX -= 10;
+        }
+      });
 
       requestAnimationFrame(update);
     }
