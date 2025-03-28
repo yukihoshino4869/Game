@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>優輝のマリオ風ゲーム</title>
+  <style>
+    body { margin: 0; background: #cceeff; overflow: hidden; }
+    #game {
+      position: relative;
+      width: 800px;
+      height: 300px;
+      margin: auto;
+      overflow: hidden;
+      background: #ccff99;
+    }
+    #world {
+      position: absolute;
+      width: 2400px;
+      height: 300px;
+      left: 0;
+      top: 0;
+    }
+    #player {
+      width: 30px;
+      height: 30px;
+      background: red;
+      position: absolute;
+      left: 50px;
+      bottom: 30px;
+    }
+    #ground {
+      position: absolute;
+      bottom: 0;
+      height: 30px;
+      width: 100%;
+      background: #654321;
+    }
+    .enemy {
+      width: 30px;
+      height: 30px;
+      background: black;
+      position: absolute;
+      bottom: 30px;
+    }
+    .bullet {
+      width: 10px;
+      height: 10px;
+      background: yellow;
+      position: absolute;
+    }
+    #gameOver {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <div id="world">
+      <div id="player"></div>
+      <div class="enemy" id="enemy1" style="left: 1000px;"></div>
+      <div class="enemy" id="enemy2" style="left: 1600px;"></div>
+      <div id="ground"></div>
+    </div>
+    <div id="gameOver">Game Over<br>Press Enter to Restart</div>
+  </div>
+
+<script>
+  let gameRunning = true;
+  const game = document.getElementById("game");
+  const world = document.getElementById("world");
+  const player = document.getElementById("player");
+  const gameOverScreen = document.getElementById("gameOver");
+  const gravity = 0.6;
+  let posX = 50, posY = 0, velocityY = 0;
+  let isJumping = false;
+  const keys = {};
+  let bullets = [];
+
+  document.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+    if (!gameRunning && e.key === "Enter") restartGame();
+  });
+
+  document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+  function shoot() {
+    const bullet = document.createElement("div");
+    bullet.className = "bullet";
+    bullet.style.left = (posX + 30) + "px";
+    bullet.style.bottom = (30 + posY + 10) + "px";
+    world.appendChild(bullet);
+    bullets.push({ el: bullet, x: posX + 30, y: posY + 30 });
+  }
+
+  function showGameOver() {
+    gameOverScreen.style.display = "flex";
+    gameRunning = false;
+  }
+
+  function restartGame() {
+    // 初期化
+    posX = 50; posY = 0; velocityY = 0; isJumping = false;
+    bullets.forEach(b => b.el.remove());
+    bullets = [];
+    document.querySelectorAll(".enemy").forEach(e => e.remove());
+    const e1 = document.createElement("div");
+    e1.className = "enemy"; e1.id = "enemy1";
+    e1.style.left = "1000px"; world.appendChild(e1);
+    const e2 = document.createElement("div");
+    e2.className = "enemy"; e2.id = "enemy2";
+    e2.style.left = "1600px"; world.appendChild(e2);
+    gameOverScreen.style.display = "none";
+    gameRunning = true;
+    update();
+  }
+
+  function update() {
+    if (!gameRunning) return;
+
+    // 操作
+    if (keys["a"]) posX -= 5;
+    if (keys["d"]) posX += 5;
+    if (keys["w"] && !isJumping) {
+      velocityY = 12; // 修正: 正しく上にジャンプ
+      isJumping = true;
+    }
+    if (keys[" "] && bullets.length < 5) shoot();
+
+    velocityY -= gravity;
+    posY += velocityY;
+
+    if (posY <= 0) {
+      posY = 0;
+      velocityY = 0;
+      isJumping = false;
+    }
+
+    // スクロール
+    const scrollX = Math.min(Math.max(posX - 400, 0), 1600);
+    world.style.left = -scrollX + "px";
+
+    player.style.left = posX + "px";
+    player.style.bottom = (30 + posY) + "px";
+
+    // 弾の移動と敵当たり判定
+    bullets.forEach((b, i) => {
+      b.x += 10;
+      b.el.style.left = b.x + "px";
+      if (b.x > 2400) {
+        b.el.remove();
+        bullets.splice(i, 1);
+      }
+      document.querySelectorAll(".enemy").forEach(enemy => {
+        const ex = parseInt(enemy.style.left);
+        if (b.x > ex && b.x < ex + 30 && b.y < 60) {
+          enemy.remove();
+          b.el.remove();
+        }
+      });
+    });
+
+    // 敵との接触チェック
+    document.querySelectorAll(".enemy").forEach(enemy => {
+      const ex = parseInt(enemy.style.left);
+      if (posX + 30 > ex && posX < ex + 30 && posY < 30) {
+        showGameOver();
+      }
+    });
+
+    requestAnimationFrame(update);
+  }
+
+  update();
+</script>
+</body>
+</html>
