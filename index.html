@@ -74,6 +74,10 @@ function startGame() {
   }
 
   flag = { x: mapWidth - 100, y: groundY - 80, width: 10, height: 80 };
+  if (!loopStarted) {
+  loop();
+  loopStarted = true;
+}
 }
 
 function shoot() {
