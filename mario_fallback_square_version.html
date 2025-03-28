@@ -1,0 +1,245 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>仮表示マリオ風ゲーム</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; height: 100%; }
+    canvas { display: block; background: #87ceeb; }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<audio id="bgm" loop autoplay>
+  <source src="https://upload.wikimedia.org/wikipedia/commons/4/42/Mario_Underground_theme.ogg" type="audio/ogg">
+</audio>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+let state = "title";
+let keys = {};
+let player, bullets = [], enemies = [], blocks = [], holes = [], flag;
+let jumpCount = 0;
+let groundY = window.innerHeight - 50;
+const gravity = 0.5;
+const mapWidth = 3200;
+
+let loopStarted = false;
+
+document.addEventListener("keydown", e => {
+  keys[e.key] = true;
+  if (e.key === "Enter" && (state === "title" || state === "gameover" || state === "stageclear")) {
+    startGame();
+    if (!loopStarted) {
+      loop();
+      loopStarted = true;
+    }
+  }
+  if (state === "playing" && e.key === "h") shoot();
+});
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+function startGame() {
+  groundY = canvas.height - 50;
+  state = "playing";
+  player = { x: 50, y: groundY - 32, vx: 0, vy: 0, width: 32, height: 32, onGround: true };
+  jumpCount = 0;
+  bullets = [];
+  enemies = [];
+  blocks = [];
+  holes = [];
+
+  for (let i = 0; i < 8; i++) {
+    enemies.push({ x: 600 + i * 300, y: groundY - 32, vx: -1, vy: 0, width: 32, height: 32, onGround: true });
+  }
+
+  for (let i = 0; i < 20; i++) {
+    let x = 200 + Math.floor(Math.random() * (mapWidth - 300));
+    let y = groundY - 100 + Math.floor(Math.random() * 80);
+    blocks.push({ x, y, width: 50, height: 20 });
+  }
+
+  for (let i = 0; i < 10; i++) {
+    let x = 300 + Math.floor(Math.random() * (mapWidth - 600));
+    holes.push({ x, width: 60 });
+  }
+
+  flag = { x: mapWidth - 100, y: groundY - 80, width: 10, height: 80 };
+}
+
+function shoot() {
+  bullets.push({
+    x: player.x + player.width / 2,
+    y: player.y + player.height / 2,
+    vx: 5,
+    width: 5,
+    height: 5
+  });
+}
+
+function isCollide(a, b) {
+  return a.x < b.x + b.width && a.x + a.width > b.x &&
+         a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function update() {
+  if (state !== "playing") return;
+
+  player.vx = 0;
+  if (keys["a"]) player.vx = -2;
+  if (keys["d"]) player.vx = 2;
+  if ((keys["w"] || keys["ArrowUp"]) && jumpCount < 2 && !keys["__jumping"]) {
+    player.vy = -10;
+    player.onGround = false;
+    jumpCount++;
+    keys["__jumping"] = true;
+  }
+  if (!(keys["w"] || keys["ArrowUp"])) keys["__jumping"] = false;
+
+  player.x += player.vx;
+  player.vy += gravity;
+  player.y += player.vy;
+  if (player.y > canvas.height) state = "gameover";
+
+  holes.forEach(h => {
+    if (player.y + player.height >= groundY &&
+        player.x + player.width / 2 > h.x &&
+        player.x + player.width / 2 < h.x + h.width) {
+      player.onGround = false;
+    }
+  });
+
+  blocks.forEach(b => {
+    if (isCollide(player, b)) {
+      if (player.vy > 0 && player.y + player.height <= b.y + player.vy) {
+        player.y = b.y - player.height;
+        player.vy = 0;
+        player.onGround = true;
+        jumpCount = 0;
+      }
+    }
+  });
+
+  if (player.y >= groundY - player.height) {
+    player.y = groundY - player.height;
+    player.vy = 0;
+    player.onGround = true;
+    jumpCount = 0;
+  }
+
+  player.x = Math.max(0, Math.min(player.x, mapWidth - player.width));
+  bullets.forEach(b => b.x += b.vx);
+  bullets = bullets.filter(b => b.x < mapWidth);
+
+  enemies.forEach(e => {
+    e.vx = e.x < player.x ? 1 : -1;
+    e.vy += gravity;
+    e.y += e.vy;
+    blocks.forEach(b => {
+      if (isCollide(e, b)) {
+        if (e.vy > 0 && e.y + e.height <= b.y + e.vy) {
+          e.y = b.y - e.height;
+          e.vy = 0;
+          e.onGround = true;
+        }
+      }
+    });
+    if (e.y + e.height >= groundY) {
+      e.y = groundY - e.height;
+      e.vy = 0;
+      e.onGround = true;
+    }
+    e.x += e.vx;
+  });
+
+  enemies = enemies.filter(e => e.y <= canvas.height);
+
+  bullets.forEach(b => {
+    for (let i = 0; i < enemies.length; i++) {
+      if (isCollide(b, enemies[i])) {
+        enemies.splice(i, 1);
+        b.hit = true;
+        break;
+      }
+    }
+  });
+  bullets = bullets.filter(b => !b.hit);
+
+  enemies.forEach(e => {
+    if (isCollide(player, e)) {
+      if (player.vy > 0) {
+        player.vy = -8;
+        enemies = enemies.filter(en => en !== e);
+      } else {
+        state = "gameover";
+      }
+    }
+  });
+
+  if (isCollide(player, flag)) state = "stageclear";
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (state === "title") {
+    ctx.fillStyle = "blue";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "white";
+    ctx.font = "48px sans-serif";
+    ctx.fillText("demo", canvas.width / 2 - 60, canvas.height / 2 - 20);
+    ctx.font = "20px sans-serif";
+    ctx.fillText("Press Enter to Start", canvas.width / 2 - 100, canvas.height / 2 + 20);
+    return;
+  }
+
+  if (state === "gameover" || state === "stageclear") {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "white";
+    ctx.font = "40px sans-serif";
+    ctx.fillText(state === "gameover" ? "Game Over" : "Stage Clear!", canvas.width / 2 - 120, canvas.height / 2 - 20);
+    ctx.font = "20px sans-serif";
+    ctx.fillText("Press Enter to Restart", canvas.width / 2 - 100, canvas.height / 2 + 20);
+    return;
+  }
+
+  let camX = player.x - canvas.width / 2;
+  camX = Math.max(0, Math.min(camX, mapWidth - canvas.width));
+
+  ctx.fillStyle = "green";
+  ctx.fillRect(-camX, groundY, mapWidth, 50);
+  ctx.fillStyle = "black";
+  holes.forEach(h => ctx.clearRect(h.x - camX, groundY, h.width, 50));
+  ctx.fillStyle = "blue";
+  blocks.forEach(b => ctx.fillRect(b.x - camX, b.y, b.width, b.height));
+
+  // 仮の見た目
+  ctx.fillStyle = "black";  // プレイヤー
+  ctx.fillRect(player.x - camX, player.y, player.width, player.height);
+  ctx.fillStyle = "red";  // 敵
+  enemies.forEach(e => ctx.fillRect(e.x - camX, e.y, e.width, e.height));
+
+  ctx.fillStyle = "yellow";  // 弾
+  bullets.forEach(b => ctx.fillRect(b.x - camX, b.y, b.width, b.height));
+  ctx.fillStyle = "white";  // ゴール
+  ctx.fillRect(flag.x - camX, flag.y, flag.width, flag.height);
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
