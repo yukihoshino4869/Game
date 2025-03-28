@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>簡易マリオ風ゲーム</title>
+  <style>
+    body { background: #e0f7fa; margin: 0; overflow: hidden; }
+    #game {
+      width: 600px;
+      height: 300px;
+      background: #a7d129;
+      position: relative;
+      margin: auto;
+      top: 50px;
+    }
+    #player {
+      width: 30px;
+      height: 30px;
+      background: red;
+      position: absolute;
+      bottom: 30px;
+      left: 50px;
+    }
+    #ground {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 30px;
+      background: #5d4037;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <div id="player"></div>
+    <div id="ground"></div>
+  </div>
+
+  <script>
+    const player = document.getElementById("player");
+    let posX = 50;
+    let posY = 0;
+    let isJumping = false;
+    let velocityY = 0;
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") {
+        posX += 10;
+      } else if (e.key === "ArrowLeft") {
+        posX -= 10;
+      } else if (e.key === " " || e.key === "ArrowUp") {
+        if (!isJumping) {
+          isJumping = true;
+          velocityY = -12;
+        }
+      }
+    });
+
+    function update() {
+      if (isJumping) {
+        velocityY += 0.5;
+        posY += velocityY;
+
+        if (posY >= 0) {
+          posY = 0;
+          isJumping = false;
+        }
+      }
+
+      player.style.left = posX + "px";
+      player.style.bottom = (30 + posY) + "px";
+
+      requestAnimationFrame(update);
+    }
+
+    update();
+  </script>
+</body>
+</html>
